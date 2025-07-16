@@ -1,0 +1,192 @@
+import React, { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, Timestamp } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC4A4fr0B-cJTFhzYE6hQBq-Qw2t07XKlw",
+  authDomain: "bla-dealer-app.firebaseapp.com",
+  projectId: "bla-dealer-app",
+  storageBucket: "bla-dealer-app.firebasestorage.app",
+  messagingSenderId: "999902556520",
+  appId: "1:999902556520:web:f7c215c1036cb2af5566dd",
+  measurementId: "G-GQG741YCLF"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+export default function LoyaltyApp() {
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [points, setPoints] = useState(0);
+  const [coupons, setCoupons] = useState([]);
+  const [lastCheckIn, setLastCheckIn] = useState(null);
+  const [adminMode, setAdminMode] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+
+  useEffect(() => {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUser(user);
+        fetchUserData(user.uid);
+        if (["shawn@tjspecialty.com", "jodi@tjspecialty.com"].includes(user.email)) {
+          setAdminMode(true);
+          fetchAllUsers();
+        }
+      } else {
+        setUser(null);
+        setPoints(0);
+        setCoupons([]);
+        setAdminMode(false);
+      }
+    });
+  }, []);
+
+  const fetchUserData = async (uid) => {
+    const docRef = doc(db, "users", uid);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      setPoints(data.points || 0);
+      setCoupons(data.coupons || []);
+      setLastCheckIn(data.lastCheckIn?.toDate());
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    const q = query(collection(db, "users"));
+    const snap = await getDocs(q);
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setAllUsers(list);
+  };
+
+  const handleCheckIn = async () => {
+    const now = new Date();
+    if (lastCheckIn && now - lastCheckIn < 7 * 24 * 60 * 60 * 1000) {
+      alert("You can only check in once per week.");
+      return;
+    }
+
+    const userRef = doc(db, "users", user.uid);
+    const newPoints = points + 1;
+    const newCoupons = [...coupons];
+    if (newPoints % 5 === 0) {
+      newCoupons.push({ id: Date.now(), redeemed: false });
+    }
+    await setDoc(userRef, {
+      email: user.email,
+      points: newPoints,
+      coupons: newCoupons,
+      lastCheckIn: Timestamp.fromDate(now)
+    }, { merge: true });
+    setPoints(newPoints);
+    setCoupons(newCoupons);
+    setLastCheckIn(now);
+  };
+
+  const handleRedeem = async (uid, couponId) => {
+    const userRef = doc(db, "users", uid);
+    const snap = await getDoc(userRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      const updated = data.coupons.map(c =>
+        c.id === couponId ? { ...c, redeemed: true } : c
+      );
+      await updateDoc(userRef, { coupons: updated });
+      if (user.uid === uid) setCoupons(updated);
+      if (adminMode) fetchAllUsers();
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      alert("Login failed.");
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-xl mx-auto text-center">
+      <img src="/logo.png" alt="BLA Poker League" className="mx-auto w-40 mb-4" />
+      <h1 className="text-2xl font-bold mb-2">BLA Loyalty Rewards</h1>
+
+      {!user && (
+        <Card className="mb-4">
+          <CardContent className="space-y-2 p-4">
+            <Input
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Input
+              placeholder="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button onClick={handleLogin}>Log In</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {user && (
+        <div>
+          <p className="mb-2">Logged in as: {user.email}</p>
+          <Button onClick={() => signOut(auth)}>Log Out</Button>
+
+          {!adminMode && (
+            <Card className="mt-4">
+              <CardContent className="space-y-2 p-4">
+                <p>You have {points} check-ins.</p>
+                <Button onClick={handleCheckIn}>Check In</Button>
+                <ul className="text-left">
+                  {coupons.map((c, i) => (
+                    <li key={c.id}>
+                      Coupon #{i + 1} - {c.redeemed ? "Redeemed" : "Available"}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {adminMode && (
+            <Card className="mt-4">
+              <CardContent className="p-4 space-y-4">
+                <h2 className="text-lg font-semibold">Admin Dashboard</h2>
+                {allUsers.map((u) => (
+                  <div key={u.id} className="border p-2 rounded">
+                    <p className="font-semibold">{u.email}</p>
+                    <p>Points: {u.points || 0}</p>
+                    <ul>
+                      {(u.coupons || []).map((c, i) => (
+                        <li key={c.id}>
+                          Coupon #{i + 1} - {c.redeemed ? "Redeemed" : "Available"}
+                          {!c.redeemed && (
+                            <Button
+                              variant="ghost"
+                              onClick={() => handleRedeem(u.id, c.id)}
+                            >
+                              Redeem
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
