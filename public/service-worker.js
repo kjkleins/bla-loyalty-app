@@ -1,0 +1,1 @@
+// Optional service worker logic
