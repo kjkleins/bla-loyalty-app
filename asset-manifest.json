@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/bla-loyalty-app/static/css/main.5693015c.css",
+    "main.js": "/bla-loyalty-app/static/js/main.786f1ed4.js",
+    "static/media/logo.png": "/bla-loyalty-app/static/media/logo.b53c5881c95ec222c5ed.png",
+    "index.html": "/bla-loyalty-app/index.html",
+    "main.5693015c.css.map": "/bla-loyalty-app/static/css/main.5693015c.css.map",
+    "main.786f1ed4.js.map": "/bla-loyalty-app/static/js/main.786f1ed4.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.5693015c.css",
+    "static/js/main.786f1ed4.js"
+  ]
+}
