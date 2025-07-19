@@ -1,623 +1,655 @@
-<<<<<<< HEAD
-body {
+/* ===============================
+   BLA Loyalty App - Consolidated Styles
+   =============================== */
+
+/* ---- CSS Reset (lightweight) ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: black;
-  color: white;
-  background-image: url("logo.png");
-  background-repeat: no-repeat;
-  background-size: 300px;
-  background-position: top center;
-  background-attachment: fixed;
-  padding-top: 280px;
+  padding: 0;
+  min-height: 100%;
+  font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #000;
+  color: #fff;
 }
 
-.container {
-  text-align: center;
-  padding: 20px;
+body {
+  line-height: 1.4;
 }
 
-.auth-box, .user-panel, .admin-panel {
-  background-color: #1f1f1f;
-  padding: 20px;
-  border-radius: 10px;
-  max-width: 400px;
-  margin: 0 auto 20px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.6);
+/* Prevent overscroll glow on mobile */
+body, #root {
+  overscroll-behavior: contain;
 }
 
-input {
-  display: block;
-  margin: 10px auto;
-  padding: 10px;
-  border: 1px solid white;
-  border-radius: 5px;
-  width: 90%;
+/* ---- Scrollbar (desktop) ---- */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #111;
+}
+::-webkit-scrollbar-thumb {
   background: #333;
-  color: white;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
 }
 
-button {
-  margin-top: 10px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
+/* ---- Selection ---- */
+::selection {
+  background: #d62f2f;
+  color: #fff;
 }
 
-button:hover {
-  opacity: 0.9;
+/* ===============================
+   Layout / Container
+   =============================== */
+
+.app-container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 1.75rem 1rem 4rem;
+  text-align: center;
+  position: relative;
 }
 
-.logout {
-  background-color: #e74c3c;
-  color: white;
+@media (min-width: 640px) {
+  .app-container {
+    padding-top: 2.25rem;
+  }
 }
 
-.checkin {
-  background-color: #27ae60;
-  color: white;
+/* Large background poker chip image (logo) */
+.app-container::before {
+  content: "";
+  position: absolute;
+  top: -150px;
+  left: 50%;
+  width: 560px;
+  height: 560px;
+  background: url("./assets/logo.png") center/contain no-repeat;
+  opacity: 0.14;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-.redeem {
-  background-color: #2ecc71;
-  color: white;
+/* Slight size adjustment on smaller phones */
+@media (max-width: 480px) {
+  .app-container::before {
+    top: -110px;
+    width: 440px;
+    height: 440px;
+    opacity: 0.22;
+  }
+}
+
+/* Content layer above background image */
+.app-container > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===============================
+   Typography
+   =============================== */
+
+h1, h2, h3 {
+  margin: 0.5rem 0 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+h1 {
+  font-size: clamp(1.65rem, 4.5vw, 2.25rem);
+}
+
+h2 {
+  font-size: clamp(1.25rem, 3.5vw, 1.65rem);
+}
+
+h3 {
+  font-size: clamp(1.1rem, 3vw, 1.35rem);
+}
+
+p {
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+small, .muted {
   font-size: 0.75rem;
-  padding: 3px 8px;
-  margin-left: 6px;
-  border-radius: 4px;
+  opacity: 0.7;
 }
 
-.link {
-  color: #3498db;
-  cursor: pointer;
+/* Emphasis */
+strong {
+  font-weight: 600;
+}
+
+/* ===============================
+   Cards / Panels
+   =============================== */
+
+.card,
+.user-panel,
+.admin-panel,
+.admin-user,
+.qr-modal-box,
+.leader {
+  background: #161616;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px -6px rgba(0,0,0,0.65);
+}
+
+.card {
+  padding: 1.75rem 1.5rem 2.25rem;
+  margin: 0 auto 1.5rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.user-panel {
+  padding: 1.25rem 1rem 1.5rem;
+  margin: 1.5rem auto 1.25rem;
+  max-width: 480px;
+  text-align: left;
+}
+
+.admin-panel {
+  margin: 2.75rem auto 1.5rem;
+  padding: 2rem 1.25rem 2.5rem;
+  max-width: 720px;
+}
+
+.admin-user {
+  margin: 1rem auto 1.35rem;
+  padding: 1rem 1rem 1.15rem;
+  text-align: left;
+  transition: background 0.22s ease, border-color 0.22s ease;
+}
+
+.admin-user:hover {
+  background: #1d1d1d;
+  border-color: #313131;
+}
+
+.section-title {
+  margin-top: 2.25rem;
+}
+
+/* ===============================
+   Leader Banner
+   =============================== */
+
+.leader {
+  margin: 1.25rem auto 2rem;
+  padding: 0.75rem 1rem;
+  max-width: 720px;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  background: linear-gradient(180deg, #222 0%, #181818 100%);
+  color: #f5d480;
+  border-color: #303030;
 }
 
-.link:hover {
+.leader .tie-note {
+  color: #ddd;
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* ===============================
+   Forms (Auth)
+   =============================== */
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.65rem;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  border-radius: 7px;
+  border: 1px solid #3a3a3a;
+  background: #101010;
+  color: #f5f5f5;
+  font-size: 0.95rem;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+
+.auth-form input:focus {
+  outline: 2px solid #d62f2f;
+  outline-offset: 0;
+  border-color: #d62f2f;
+  box-shadow: 0 0 0 3px rgba(214,47,47,0.25);
+}
+
+.auth-toggle {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: #d62f2f;
   text-decoration: underline;
 }
 
-.top-user {
-  background-color: #2c2c2c;
-  color: #ffeaa7;
-  padding: 10px;
-  border-radius: 8px;
-  margin: 20px auto;
-  max-width: 500px;
-  font-weight: bold;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
+.auth-toggle:hover {
+  color: #ff4747;
 }
 
-.admin-user-box {
-  background-color: #2b2b2b;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 20px;
-}
-
-.logged-in {
-  font-size: 1rem;
-  margin-bottom: 10px;
-}
-
-.title {
-  font-size: 1.8rem;
-  font-weight: bold;
-  margin-top: 20px;
-  margin-bottom: 10px;
-}
-.auth-wrapper, .app-shell {
-  font-family: Arial, sans-serif;
-  color: #fff;
-  background: #000;
-  min-height: 100vh;
-  padding: 20px;
-  text-align: center;
-}
-
-.auth-card, .panel, .admin-panel, .user-row {
-  background: #111;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px auto;
-  max-width: 480px;
-  box-shadow: 0 0 4px rgba(255,255,255,0.1);
-}
-
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  max-width: 800px;
-  margin: 0 auto 12px;
-  align-items: center;
-}
+/* ===============================
+   Buttons
+   =============================== */
 
 button {
+  font-family: inherit;
   cursor: pointer;
   border: none;
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-weight: 600;
-  margin-top: 8px;
-}
-
-.primary { background:#168a30; color:#fff; }
-.secondary { background:#444; color:#fff; }
-.logout-btn { background:#c63a3a; color:#fff; }
-.small-btn, .redeem-btn { background:#168a30; color:#fff; margin-left:6px; }
-
-.leader-box {
-  background:#1d1d1d;
-  padding:10px;
-  border-radius:6px;
-  max-width:600px;
-  margin:0 auto 20px;
-  font-size:0.95rem;
-}
-
-.scanner-block {
-  margin-top: 12px;
-}
-
-.coupon-list, .coupon-mini-list {
-  list-style:none;
-  padding-left:0;
-  text-align:left;
-  max-width:360px;
-  margin: 8px auto 0;
-}
-
-.user-row {
-  text-align:left;
-}
-
-.user-summary {
-  font-size:0.9rem;
-  margin-bottom:4px;
-}
-/* Prevent background scroll when modal open */
-.app-shell.no-scroll {
-  height: 100vh;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Modal Overlay */
-.scanner-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.80);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5000;
-  animation: fadeIn 0.25s ease;
-  padding: 20px;
-}
-
-/* Dialog */
-.scanner-dialog {
-  background: #111;
-  border: 1px solid #222;
-  border-radius: 14px;
-  padding: 20px 22px 28px;
-  max-width: 340px;
-  width: 100%;
-  box-shadow: 0 6px 26px -4px rgba(0,0,0,0.8),
-              0 0 0 1px rgba(255,255,255,0.05);
-  position: relative;
-  animation: scaleIn 0.25s ease;
-  text-align: center;
-}
-
-.scanner-title {
-  margin: 0 0 10px;
-  font-size: 1.15rem;
-  letter-spacing: .5px;
-}
-
-.qr-reader-box {
-  width: 280px;
-  max-width: 100%;
-  margin: 0 auto;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #000;
-  box-shadow: 0 0 0 1px #333, 0 4px 16px -2px rgba(0,0,0,0.7);
-}
-
-.scanner-close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  background: #222;
-  color: #fff;
-  border: none;
-  font-size: 16px;
-  line-height: 1;
-  padding: 4px 8px 6px;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background .18s;
-}
-.scanner-close:hover {
-  background: #333;
-}
-
-.camera-switch {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
-}
-.camera-switch label {
-  font-size: 12px;
-  opacity: .75;
-}
-.camera-switch select {
-  background: #181818;
-  color: #fff;
-  border: 1px solid #333;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 13px;
   outline: none;
 }
 
-.camera-error {
-  color: #ff8484;
-  font-size: 12px;
-  margin-top: 8px;
-  background: rgba(255,0,0,0.08);
-  padding: 6px 8px;
-  border-radius: 6px;
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn,
+.logout,
+.checkin-button,
+.redeem-button,
+.close-scan,
+.scan-qr-btn {
+  font-weight: 600;
+  border-radius: 7px;
+  padding: 0.68rem 1.15rem;
+  font-size: 0.88rem;
+  line-height: 1;
+  transition: background 0.22s, transform 0.22s, box-shadow 0.22s;
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.btn:focus-visible,
+.logout:focus-visible,
+.checkin-button:focus-visible,
+.redeem-button:focus-visible,
+.close-scan:focus-visible,
+.scan-qr-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.logout {
+  background: #d62f2f;
+  color: #fff;
+  min-width: 150px;
+  margin: 0.75rem auto 0.25rem;
+  display: inline-block;
+}
+
+.logout:hover {
+  background: #ff3434;
+}
+
+.checkin-button,
+.scan-qr-btn {
+  background: #138f2d;
+  color: #fff;
+  min-width: 160px;
+}
+
+.checkin-button:hover,
+.scan-qr-btn:hover {
+  background: #17a736;
+}
+
+.redeem-button {
+  background: #d62f2f;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.4rem 0.55rem;
+  margin-left: 0.65rem;
+}
+
+.redeem-button:hover {
+  background: #ff3d3d;
+}
+
+.close-scan {
+  background: #444;
+  color: #fff;
+  padding: 0.6rem 1rem;
+  margin-top: 1rem;
+}
+
+.close-scan:hover {
+  background: #555;
+}
+
+/* Subtle press animation */
+button:active {
+  transform: translateY(1px);
+}
+
+/* ===============================
+   User / Admin Panels – Interior
+   =============================== */
+
+.user-panel h3,
+.admin-panel h3 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.admin-panel h2,
+.admin-panel h3 {
+  letter-spacing: 0.5px;
+}
+
+.admin-user strong {
+  font-weight: 600;
+  letter-spacing: 0.25px;
+}
+
+.admin-user .stats {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+/* ===============================
+   Coupon List
+   =============================== */
+
+ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.65rem 0 0;
+}
+
+.coupon-list li,
+.admin-user ul li {
+  font-size: 0.84rem;
+  margin: 0.55rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  line-height: 1.25;
+}
+
+.coupon-emoji {
+  font-size: 0.95rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  background: #252525;
+  padding: 0.28rem 0.55rem 0.3rem;
+  border-radius: 30px;
+  border: 1px solid #343434;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.status-pill.redeemed {
+  background: #501919;
+  border-color: #5e2020;
+  color: #ffb6b6;
+}
+
+.status-pill.active {
+  background: #143b18;
+  border-color: #1d5223;
+  color: #a0f0b3;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #ff3535;
+}
+
+.status-dot.available {
+  background: #2bd143;
+}
+
+/* Badge for leader notation inside tie list or highlight */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #2d2d2d;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  border: 1px solid #414141;
+  font-weight: 600;
+}
+
+/* Tie list (if you choose to show shared leaders) */
+.tie-list {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.tie-list li {
+  background: #222;
+  border: 1px solid #333;
+  padding: 0.35rem 0.65rem;
+  border-radius: 20px;
+}
+
+/* ===============================
+   QR Scanner Modal
+   =============================== */
+
+.qr-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.82);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: fadeIn 0.25s ease;
+  padding: 1rem;
+}
+
+.qr-modal-box {
+  width: 100%;
+  max-width: 380px;
+  padding: 1.25rem 1.25rem 1.75rem;
+  text-align: center;
+  animation: slideUp 0.28s ease;
+  position: relative;
+}
+
+.qr-modal-box h3 {
+  margin-top: 0.15rem;
+  margin-bottom: 0.35rem;
+  font-size: 1.1rem;
+}
+
+.qr-instructions {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  margin-bottom: 0.75rem;
   line-height: 1.3;
 }
 
-.scanner-hint {
-  font-size: 11px;
-  opacity: .55;
-  margin-top: 10px;
-  letter-spacing: .3px;
+/* Placeholder container for scanner video canvas */
+.qr-video-wrapper {
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Wide button in modal */
-button.wide {
+.qr-video-wrapper video {
   width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-target-box {
+  position: absolute;
+  inset: 12%;
+  border: 2px dashed rgba(255,255,255,0.35);
+  border-radius: 10px;
+  pointer-events: none;
+  animation: targetPulse 2.8s infinite linear;
+}
+
+@keyframes targetPulse {
+  0% { border-color: rgba(255,255,255,0.3); }
+  50% { border-color: rgba(255,255,255,0.6); }
+  100% { border-color: rgba(255,255,255,0.3); }
 }
 
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1;  }
-}
-@keyframes scaleIn {
-  0% { transform: scale(.85); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  to { opacity: 1; }
 }
 
-/* Make sure html5-qrcode video fits nicely */
-#qr-reader__scan_region video,
-#qr-reader video {
-  width: 100% !important;
-  height: auto !important;
-  border-radius: 6px;
-}
-=======
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: black;
-  color: white;
-  background-image: url("logo.png");
-  background-repeat: no-repeat;
-  background-size: 300px;
-  background-position: top center;
-  background-attachment: fixed;
-  padding-top: 280px;
+@keyframes slideUp {
+  from { transform: translateY(22px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-.container {
+/* ===============================
+   Utility
+   =============================== */
+
+.center {
   text-align: center;
-  padding: 20px;
 }
 
-.auth-box, .user-panel, .admin-panel {
-  background-color: #1f1f1f;
-  padding: 20px;
-  border-radius: 10px;
-  max-width: 400px;
-  margin: 0 auto 20px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.6);
+.flex {
+  display: flex;
 }
 
-input {
-  display: block;
-  margin: 10px auto;
-  padding: 10px;
-  border: 1px solid white;
-  border-radius: 5px;
-  width: 90%;
-  background: #333;
-  color: white;
+.flex-col {
+  flex-direction: column;
 }
 
-button {
-  margin-top: 10px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
+.gap-sm {
+  gap: 0.5rem;
 }
 
-button:hover {
-  opacity: 0.9;
+.text-left {
+  text-align: left;
 }
 
-.logout {
-  background-color: #e74c3c;
-  color: white;
+/* Focus ring for any custom interactive item */
+[tabindex]:focus-visible,
+a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
-.checkin {
-  background-color: #27ae60;
-  color: white;
+/* Link styling (if any plain anchors appear) */
+a {
+  color: #d62f2f;
+  text-decoration: none;
 }
-
-.redeem {
-  background-color: #2ecc71;
-  color: white;
-  font-size: 0.75rem;
-  padding: 3px 8px;
-  margin-left: 6px;
-  border-radius: 4px;
-}
-
-.link {
-  color: #3498db;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.link:hover {
+a:hover {
+  color: #ff4d4d;
   text-decoration: underline;
 }
 
-.top-user {
-  background-color: #2c2c2c;
-  color: #ffeaa7;
-  padding: 10px;
-  border-radius: 8px;
-  margin: 20px auto;
-  max-width: 500px;
-  font-weight: bold;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
+/* ===============================
+   Mobile Tweaks
+   =============================== */
+
+@media (max-width: 600px) {
+  .admin-panel {
+    padding: 1.5rem 0.9rem 2rem;
+  }
+  .admin-user {
+    padding: 0.85rem 0.85rem 1rem;
+  }
+  .logout {
+    min-width: 130px;
+  }
+  .checkin-button, .scan-qr-btn {
+    min-width: 150px;
+  }
+  .leader {
+    font-size: 0.82rem;
+    padding: 0.65rem 0.85rem;
+  }
+  .coupon-list li,
+  .admin-user ul li {
+    font-size: 0.8rem;
+  }
 }
 
-.admin-user-box {
-  background-color: #2b2b2b;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 20px;
+/* ===============================
+   Print (avoid huge dark background)
+   =============================== */
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .app-container::before {
+    display: none;
+  }
+  .card,
+  .user-panel,
+  .admin-panel,
+  .admin-user,
+  .leader {
+    background: #fff;
+    color: #000;
+    border-color: #ccc;
+    box-shadow: none;
+  }
+  button,
+  .checkin-button,
+  .logout,
+  .redeem-button {
+    display: none;
+  }
 }
 
-.logged-in {
-  font-size: 1rem;
-  margin-bottom: 10px;
-}
-
-.title {
-  font-size: 1.8rem;
-  font-weight: bold;
-  margin-top: 20px;
-  margin-bottom: 10px;
-}
-.auth-wrapper, .app-shell {
-  font-family: Arial, sans-serif;
-  color: #fff;
-  background: #000;
-  min-height: 100vh;
-  padding: 20px;
-  text-align: center;
-}
-
-.auth-card, .panel, .admin-panel, .user-row {
-  background: #111;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px auto;
-  max-width: 480px;
-  box-shadow: 0 0 4px rgba(255,255,255,0.1);
-}
-
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  max-width: 800px;
-  margin: 0 auto 12px;
-  align-items: center;
-}
-
-button {
-  cursor: pointer;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-weight: 600;
-  margin-top: 8px;
-}
-
-.primary { background:#168a30; color:#fff; }
-.secondary { background:#444; color:#fff; }
-.logout-btn { background:#c63a3a; color:#fff; }
-.small-btn, .redeem-btn { background:#168a30; color:#fff; margin-left:6px; }
-
-.leader-box {
-  background:#1d1d1d;
-  padding:10px;
-  border-radius:6px;
-  max-width:600px;
-  margin:0 auto 20px;
-  font-size:0.95rem;
-}
-
-.scanner-block {
-  margin-top: 12px;
-}
-
-.coupon-list, .coupon-mini-list {
-  list-style:none;
-  padding-left:0;
-  text-align:left;
-  max-width:360px;
-  margin: 8px auto 0;
-}
-
-.user-row {
-  text-align:left;
-}
-
-.user-summary {
-  font-size:0.9rem;
-  margin-bottom:4px;
-}
-/* Prevent background scroll when modal open */
-.app-shell.no-scroll {
-  height: 100vh;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Modal Overlay */
-.scanner-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.80);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5000;
-  animation: fadeIn 0.25s ease;
-  padding: 20px;
-}
-
-/* Dialog */
-.scanner-dialog {
-  background: #111;
-  border: 1px solid #222;
-  border-radius: 14px;
-  padding: 20px 22px 28px;
-  max-width: 340px;
-  width: 100%;
-  box-shadow: 0 6px 26px -4px rgba(0,0,0,0.8),
-              0 0 0 1px rgba(255,255,255,0.05);
-  position: relative;
-  animation: scaleIn 0.25s ease;
-  text-align: center;
-}
-
-.scanner-title {
-  margin: 0 0 10px;
-  font-size: 1.15rem;
-  letter-spacing: .5px;
-}
-
-.qr-reader-box {
-  width: 280px;
-  max-width: 100%;
-  margin: 0 auto;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #000;
-  box-shadow: 0 0 0 1px #333, 0 4px 16px -2px rgba(0,0,0,0.7);
-}
-
-.scanner-close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  background: #222;
-  color: #fff;
-  border: none;
-  font-size: 16px;
-  line-height: 1;
-  padding: 4px 8px 6px;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background .18s;
-}
-.scanner-close:hover {
-  background: #333;
-}
-
-.camera-switch {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
-}
-.camera-switch label {
-  font-size: 12px;
-  opacity: .75;
-}
-.camera-switch select {
-  background: #181818;
-  color: #fff;
-  border: 1px solid #333;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 13px;
-  outline: none;
-}
-
-.camera-error {
-  color: #ff8484;
-  font-size: 12px;
-  margin-top: 8px;
-  background: rgba(255,0,0,0.08);
-  padding: 6px 8px;
-  border-radius: 6px;
-  line-height: 1.3;
-}
-
-.scanner-hint {
-  font-size: 11px;
-  opacity: .55;
-  margin-top: 10px;
-  letter-spacing: .3px;
-}
-
-/* Wide button in modal */
-button.wide {
-  width: 100%;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1;  }
-}
-@keyframes scaleIn {
-  0% { transform: scale(.85); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-/* Make sure html5-qrcode video fits nicely */
-#qr-reader__scan_region video,
-#qr-reader video {
-  width: 100% !important;
-  height: auto !important;
-  border-radius: 6px;
-}
->>>>>>> 738dda1f518ac700ca151507977d5bdc86bfd3ae
