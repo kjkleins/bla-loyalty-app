@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// src/App.js
+import React, { useEffect, useState, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -20,7 +21,7 @@ import {
 } from "firebase/firestore";
 import "./index.css";
 
-/* ---------------- Firebase Config (unchanged except storageBucket fix if needed) ----------- */
+// ---- Firebase Config (keep as-is / replace if needed) ----
 const firebaseConfig = {
   apiKey: "AIzaSyC4A4fr0B-cJTFhzYE6hQBq-Qw2t07XKlw",
   authDomain: "bla-dealer-app.firebaseapp.com",
@@ -30,94 +31,78 @@ const firebaseConfig = {
   appId: "1:999902556520:web:f7c215c1036cb2af5566dd",
   measurementId: "G-GQG741YCLF",
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ---------------- Admins ---------------- */
+// ---- Admin Emails ----
 const adminEmails = [
   "shawn@tjspecialty.com",
   "jodi@tjspecialty.com",
   "kevin@tjspecialty.com",
 ];
 
-/* ---------------- QR Secret (single venue code) ----------- */
-const QR_SECRET = "BLA_CHECKIN_2025";
+// ---- QR Code Expected Payload ----
+const REQUIRED_QR_VALUE = "BLA_CHECKIN_V1"; // Make sure QR encodes this EXACT string.
+const SCAN_REGION_ID = "qr-reader";
 
-/* ================= MAIN APP ================= */
 export default function App() {
+  // Auth / user state
   const [user, setUser] = useState(null);
   const [adminMode, setAdminMode] = useState(false);
 
   // Auth form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [signup, setSignup] = useState(false);
   const [name, setName] = useState("");
+  const [signup, setSignup] = useState(false);
 
   // User data
   const [points, setPoints] = useState(0);
   const [coupons, setCoupons] = useState([]);
   const [lastCheckIn, setLastCheckIn] = useState(null);
 
-  // Global lists
+  // Collections
   const [allUsers, setAllUsers] = useState([]);
-  const [leaders, setLeaders] = useState([]); // list of top users (ties)
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]); // sorted array of leaders tied for #1
+  const [topUser, setTopUser] = useState(null); // single primary leader (first in tie list)
 
-  // QR scanning
+  // QR Scanner modal & status
   const [showScanner, setShowScanner] = useState(false);
-  const [scanning, setScanning] = useState(false);
+  const [scannerStatus, setScannerStatus] = useState("");
+  const html5QrcodeRef = useRef(null);
+  const scannerRunningRef = useRef(false);
 
-  // UI feedback
-  const [statusMsg, setStatusMsg] = useState("");
+  // Import html5-qrcode lazily (to avoid SSR / build issues)
+  const Html5Qrcode = window.Html5Qrcode ? window.Html5Qrcode : null;
 
-  /* --------- Runtime logo path CSS variable (GitHub Pages aware) ---------- */
+  // ------------------ Auth Listener ------------------
   useEffect(() => {
-    const base =
-      process.env.PUBLIC_URL && process.env.PUBLIC_URL !== "."
-        ? process.env.PUBLIC_URL
-        : "";
-    const normalized = base.replace(/\/+$/, "");
-    const logoPath = `${normalized}/logo.png`;
-    document.documentElement.style.setProperty(
-      "--logo-path",
-      `url("${logoPath}")`
-    );
-  }, []);
-
-  /* --------- Auth listener ---------- */
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (current) => {
-      if (current) {
-        setUser(current);
-        const ref = doc(db, "users", current.uid);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          const data = snap.data();
+    const unsub = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        const docRef = doc(db, "users", currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
             setPoints(data.points || 0);
             setCoupons(data.coupons || []);
             setLastCheckIn(data.lastCheckIn?.toDate() || null);
             setName(data.name || "");
         } else {
-          // Ensure a user doc exists
-          await setDoc(ref, {
-            email: current.email,
-            name: "",
+          // If user doc missing (rare), create baseline
+          await setDoc(docRef, {
+            email: currentUser.email,
+            name: currentUser.displayName || "",
             points: 0,
             coupons: [],
             lastCheckIn: null,
-            createdAt: Timestamp.now(),
           });
         }
-        if (adminEmails.includes(current.email)) {
-          setAdminMode(true);
-          fetchAllUsers();
-        } else {
-          setAdminMode(false);
-          fetchAllUsers(); // still fetch to compute leaders for standard users
-        }
+
+        const isAdmin = adminEmails.includes(currentUser.email);
+        setAdminMode(isAdmin);
+        fetchAllUsers(isAdmin);
       } else {
         setUser(null);
         setAdminMode(false);
@@ -125,54 +110,82 @@ export default function App() {
         setCoupons([]);
         setLastCheckIn(null);
         setAllUsers([]);
-        setLeaders([]);
+        setLeaderboard([]);
+        setTopUser(null);
       }
     });
     return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* --------- Fetch all users (for leaders + admin) ---------- */
-  const fetchAllUsers = async () => {
-    setLoadingUsers(true);
+  // ------------------ Fetch all users (for admin & leaderboard) ------------------
+  const fetchAllUsers = async (force = false) => {
+    // We always fetch to keep leaderboard updated (even for non-admin so they see leaders)
     try {
       const q = query(collection(db, "users"));
       const snap = await getDocs(q);
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setAllUsers(list);
+      if (force || adminMode) setAllUsers(list);
 
-      // Determine leaders (highest points, handle ties)
-      if (list.length) {
-        const max = Math.max(...list.map((u) => u.points || 0));
-        const topList = list
-          .filter((u) => (u.points || 0) === max)
-          .sort((a, b) =>
-            (a.name || a.email).localeCompare(b.name || b.email)
-          );
-        setLeaders(topList);
+      // Determine leader(s)
+      const sorted = [...list].sort((a, b) => (b.points || 0) - (a.points || 0));
+      if (sorted.length > 0) {
+        const maxPts = sorted[0].points || 0;
+        const ties = sorted.filter((u) => (u.points || 0) === maxPts);
+        setLeaderboard(ties);
+        setTopUser(ties[0]);
       } else {
-        setLeaders([]);
+        setLeaderboard([]);
+        setTopUser(null);
       }
-    } finally {
-      setLoadingUsers(false);
+    } catch (e) {
+      console.error("Fetch users error:", e);
     }
   };
 
-  /* --------- Weekly check-in guard ---------- */
-  const canCheckIn = () => {
-    if (!lastCheckIn) return true;
-    const now = Date.now();
-    const diff = now - lastCheckIn.getTime();
-    const WEEK = 7 * 24 * 60 * 60 * 1000;
-    return diff >= WEEK;
+  // Poll leaderboard periodically (optional – ensures non-admin sees updates)
+  useEffect(() => {
+    if (!user) return;
+    fetchAllUsers(false);
+    const interval = setInterval(() => fetchAllUsers(false), 30000); // 30s refresh
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // ------------------ Utility: Weekly Lock Logic ------------------
+  const isLockedOut = () => {
+    if (!lastCheckIn) return false;
+    const now = new Date();
+    return now - lastCheckIn < 7 * 24 * 60 * 60 * 1000;
   };
 
-  /* --------- Handle user check-in (requires scanning unless admin) ---------- */
-  const performCheckIn = async (uid, currentData) => {
-    const now = new Date();
-    const ref = doc(db, "users", uid);
-    const currentPoints = currentData?.points ?? points;
-    const currentCoupons = currentData?.coupons ?? coupons;
+  const nextEligibleDate = () => {
+    if (!lastCheckIn) return null;
+    const next = new Date(lastCheckIn.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return next;
+  };
 
+  const nextEligibleText = () => {
+    const dt = nextEligibleDate();
+    if (!dt) return "";
+    return dt.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // ------------------ Check-In (shared) ------------------
+  const performCheckIn = async (uid) => {
+    const now = new Date();
+    const userRef = doc(db, "users", uid);
+    const snap = await getDoc(userRef);
+    let data = {};
+    if (snap.exists()) data = snap.data();
+
+    const currentPoints = data.points || 0;
+    const currentCoupons = data.coupons || [];
     const newPoints = currentPoints + 1;
     const newCoupons = [...currentCoupons];
     if (newPoints % 5 === 0) {
@@ -180,7 +193,7 @@ export default function App() {
     }
 
     await setDoc(
-      ref,
+      userRef,
       {
         points: newPoints,
         coupons: newCoupons,
@@ -189,136 +202,37 @@ export default function App() {
       { merge: true }
     );
 
+    // If this is the currently logged-in user, update local state
     if (uid === user.uid) {
       setPoints(newPoints);
       setCoupons(newCoupons);
       setLastCheckIn(now);
     }
-    fetchAllUsers();
-    setStatusMsg("Check-in recorded!");
-    setTimeout(() => setStatusMsg(""), 2500);
+    // Refresh leaderboard / admin view
+    fetchAllUsers(adminMode);
   };
 
-  const handleCheckIn = async () => {
+  // ------------------ Manual Admin Check-In Button Handler ------------------
+  const handleAdminCheckIn = async () => {
     if (!user) return;
-    if (!canCheckIn()) {
-      alert("You can only check in once per week.");
-      return;
-    }
-    // Non-admin must scan QR
-    if (!adminMode) {
-      setShowScanner(true);
-      setScanning(true);
-      return;
-    }
     await performCheckIn(user.uid);
   };
 
-  /* --------- QR scanning logic (native) ---------- */
-  useEffect(() => {
-    let video = null;
-    let stream = null;
-    let rafId = null;
-
-    async function startScanner() {
-      try {
-        video = document.createElement("video");
-        video.setAttribute("playsinline", "true");
-        video.style.display = "none";
-        document.body.appendChild(video);
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-        });
-        video.srcObject = stream;
-        await video.play();
-
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        const scan = () => {
-          if (!scanning) return;
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-              canvas.width = video.videoWidth;
-              canvas.height = video.videoHeight;
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const code = decodeSimpleQR(canvas);
-              if (code) {
-                if (code.data === QR_SECRET) {
-                  stopScanner();
-                  performCheckIn(user.uid);
-                } else {
-                  alert("Invalid QR code.");
-                  stopScanner();
-                }
-                return;
-              }
-            }
-          rafId = requestAnimationFrame(scan);
-        };
-        scan();
-      } catch (err) {
-        console.error(err);
-        alert("Unable to start camera.");
-        stopScanner();
-      }
-    }
-
-    function stopScanner() {
-      setScanning(false);
-      setShowScanner(false);
-      if (rafId) cancelAnimationFrame(rafId);
-      if (video) {
-        video.pause();
-        video.remove();
-      }
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-      }
-    }
-
-    // Basic brightness-based pseudo decode (placeholder)
-    function decodeSimpleQR(canvas) {
-      const ctx = canvas.getContext("2d");
-      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 4 * 50) {
-        sum += data[i]; // red channel sample
-      }
-      const avg = sum / (data.length / (4 * 50));
-      if (avg < 40) {
-        return { data: QR_SECRET }; // simulated success if mostly dark
-      }
-      return null;
-    }
-
-    if (scanning && showScanner) {
-      startScanner();
-    }
-
-    return () => {
-      // cleanup
-      if (rafId) cancelAnimationFrame(rafId);
-      if (stream) stream.getTracks().forEach((t) => t.stop());
-      if (video) video.remove();
-    };
-  }, [scanning, showScanner, user]);
-
-  /* --------- Redeem coupon ---------- */
+  // ------------------ Coupon Redemption ------------------
   const handleRedeem = async (uid, couponId) => {
-    const ref = doc(db, "users", uid);
-    const snap = await getDoc(ref);
+    const userRef = doc(db, "users", uid);
+    const snap = await getDoc(userRef);
     if (!snap.exists()) return;
     const data = snap.data();
     const updated = (data.coupons || []).map((c) =>
       c.id === couponId ? { ...c, redeemed: true } : c
     );
-    await updateDoc(ref, { coupons: updated });
+    await updateDoc(userRef, { coupons: updated });
     if (uid === user.uid) setCoupons(updated);
-    fetchAllUsers();
+    fetchAllUsers(adminMode);
   };
 
-  /* --------- Login & Signup ---------- */
+  // ------------------ Auth Actions ------------------
   const handleLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
@@ -332,18 +246,13 @@ export default function App() {
 
   const handleSignup = async () => {
     try {
-      const res = await createUserWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
+      const res = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await setDoc(doc(db, "users", res.user.uid), {
         email: email.trim(),
         name: name.trim(),
         points: 0,
         coupons: [],
         lastCheckIn: null,
-        createdAt: Timestamp.now(),
       });
       setEmail("");
       setPassword("");
@@ -353,202 +262,370 @@ export default function App() {
     }
   };
 
-  /* --------- Helpers ---------- */
-  const userDisplayName = (u) => u.name || u.email;
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
 
-  const userCouponsActive = coupons.filter((c) => !c.redeemed).length;
-  const userCouponsTotal = coupons.length;
+  // ------------------ QR Scanner Lifecycle ------------------
+  const handleOpenScanner = () => {
+    if (!user) return;
+    setScannerStatus("Initializing...");
+    setShowScanner(true);
+  };
 
-  /* --------- Leader banner (for ALL users) ---------- */
-  const showLeaderBanner =
-    leaders.length > 0 &&
-    user &&
-    !leaders.some((l) => l.id === user.uid); // show only if you're not among leaders
+  const handleCloseScanner = () => {
+    setShowScanner(false);
+  };
 
+  const onScanError = (err) => {
+    // Throttle the noisy errors
+    // console.debug("Scan error:", err);
+  };
+
+  const onScanSuccess = async (decodedText) => {
+    // Prevent duplicate handling
+    if (!scannerRunningRef.current) return;
+
+    if (!user) {
+      setScannerStatus("Not logged in.");
+      return;
+    }
+
+    // Admin path: we allow always
+    if (adminMode) {
+      setScannerStatus("Recording admin check-in...");
+      scannerRunningRef.current = false;
+      await performCheckIn(user.uid);
+      setScannerStatus("Admin check-in ✅");
+      setTimeout(() => {
+        setShowScanner(false);
+        stopScanner();
+      }, 1000);
+      return;
+    }
+
+    // Enforce weekly AFTER a scan occurs
+    if (isLockedOut()) {
+      setScannerStatus(
+        "Already checked-in this week. Eligible after: " + nextEligibleText()
+      );
+      setTimeout(() => {
+        setShowScanner(false);
+        stopScanner();
+      }, 1800);
+      return;
+    }
+
+    if (decodedText !== REQUIRED_QR_VALUE) {
+      setScannerStatus("Invalid QR code.");
+      setTimeout(() => setScannerStatus("Scanning..."), 1200);
+      return;
+    }
+
+    // Valid code & eligible
+    setScannerStatus("Saving check-in...");
+    scannerRunningRef.current = false;
+    await performCheckIn(user.uid);
+    setScannerStatus("Check-in successful! 🎉");
+    setTimeout(() => {
+      setShowScanner(false);
+      stopScanner();
+    }, 1200);
+  };
+
+  async function startScanner() {
+    if (scannerRunningRef.current) return;
+    const VideoLib = window.Html5Qrcode;
+    if (!VideoLib) {
+      setScannerStatus("QR library not loaded.");
+      return;
+    }
+
+    try {
+      // Ensure container exists
+      const el = document.getElementById(SCAN_REGION_ID);
+      if (!el) {
+        requestAnimationFrame(startScanner);
+        return;
+      }
+      el.innerHTML = ""; // Clear any stale nodes
+
+      if (!html5QrcodeRef.current) {
+        html5QrcodeRef.current = new VideoLib(SCAN_REGION_ID, false);
+      }
+
+      scannerRunningRef.current = true;
+      setScannerStatus("Initializing camera...");
+
+      try {
+        await html5QrcodeRef.current.start(
+          { facingMode: { exact: "environment" } },
+            { fps: 10, qrbox: 250 },
+            onScanSuccess,
+            onScanError
+        );
+      } catch (envErr) {
+        // Fallback
+        await html5QrcodeRef.current.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanError
+        );
+      }
+
+      setScannerStatus("Scanning...");
+    } catch (err) {
+      console.error("Start scanner error:", err);
+      setScannerStatus("Camera error. Check permissions & retry.");
+      scannerRunningRef.current = false;
+    }
+  }
+
+  async function stopScanner() {
+    if (!html5QrcodeRef.current) return;
+    if (scannerRunningRef.current) {
+      try {
+        await html5QrcodeRef.current.stop();
+      } catch (e) {
+        // ignore
+      }
+    }
+    scannerRunningRef.current = false;
+  }
+
+  useEffect(() => {
+    if (showScanner && user) {
+      const t = setTimeout(() => startScanner(), 30);
+      return () => clearTimeout(t);
+    } else {
+      stopScanner();
+    }
+    return () => {
+      stopScanner();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showScanner, user]);
+
+  // ------------------ Derived Values ------------------
+  const locked = isLockedOut();
+  const activeCoupons = coupons.filter((c) => !c.redeemed);
+  const totalCoupons = coupons.length;
+
+  // Build leader banner text
+  const leaderBanner = (() => {
+    if (!leaderboard.length) return "";
+    const maxPts = leaderboard[0].points || 0;
+    if (leaderboard.length === 1) {
+      const u = leaderboard[0];
+      return `${u.name || u.email} is leading with ${maxPts} check-ins!`;
+    }
+    const names = leaderboard
+      .map((u) => u.name || u.email)
+      .slice(0, 3)
+      .join(", ");
+    const more = leaderboard.length > 3 ? ` +${leaderboard.length - 3} more` : "";
+    return `Tie at ${maxPts}: ${names}${more}`;
+  })();
+
+  // ------------------ Render ------------------
   return (
-    <div className="app-container">
-      <div className="content-card">
+    <div className="app-shell">
+      <header className="header">
         <h1 className="app-title">BLA Loyalty Rewards</h1>
+      </header>
 
-        {!user && (
-            <div className="auth-panel">
-              <h2>{signup ? "Create Account" : "Log In"}</h2>
-              <input
-                className="text-input"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="username"
-              />
-              <input
-                className="text-input"
-                placeholder="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={signup ? "new-password" : "current-password"}
-              />
-              {signup && (
-                <input
-                  className="text-input"
-                  placeholder="Display Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              )}
-              <button
-                className="primary-btn"
-                onClick={signup ? handleSignup : handleLogin}
-              >
-                {signup ? "Sign Up" : "Log In"}
-              </button>
-              <p className="toggle-link" onClick={() => setSignup(!signup)}>
-                {signup ? "Have an account? Log in" : "New user? Sign up"}
-              </p>
-            </div>
-        )}
+      {!user && (
+        <div className="card auth-card">
+          <h2 className="auth-header">{signup ? "Sign Up" : "Log In"}</h2>
+          <input
+            className="text-input"
+            placeholder="Email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            className="text-input"
+            placeholder="Password"
+            type="password"
+            autoComplete={signup ? "new-password" : "current-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          {signup && (
+            <input
+              className="text-input"
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
+          <button
+            className="primary-btn"
+            onClick={signup ? handleSignup : handleLogin}
+          >
+            {signup ? "Create Account" : "Log In"}
+          </button>
+          <p className="switch-auth" onClick={() => setSignup(!signup)}>
+            {signup ? "Have an account? Log in" : "New user? Sign up"}
+          </p>
+        </div>
+      )}
 
-        {user && (
-          <>
+      {user && (
+        <div className="content">
+          <div className="user-bar">
             <p className="logged-in">
-              Logged in as: <strong>{userDisplayName({ name, email: user.email })}</strong>
+              Logged in as: <strong>{name || user.email}</strong>
             </p>
-            <button
-              className="logout-btn"
-              onClick={() => {
-                signOut(auth);
-              }}
-            >
+            <button className="logout-btn" onClick={handleLogout}>
               Log Out
             </button>
+          </div>
 
-            {showLeaderBanner && (
-              <div className="leader-banner">
-                🏆{" "}
-                {leaders
-                  .map((l) => userDisplayName(l))
-                  .join(", ")}{" "}
-                {leaders.length === 1 ? "is" : "are"} leading with{" "}
-                {leaders[0].points} check-ins!
-              </div>
-            )}
-
-            {statusMsg && <div className="status-msg">{statusMsg}</div>}
-
-            {/* User / Admin Self Panel */}
-            <div className="user-panel">
-              <h2 className="panel-heading">Your Status</h2>
-              <p className="stat-line">
-                Check-ins: <strong>{points}</strong>
-              </p>
-              <p className="stat-line">
-                Coupons:{" "}
-                <strong>
-                  {userCouponsActive} active / {userCouponsTotal} total
-                </strong>
-              </p>
-              <button
-                disabled={!canCheckIn() && !adminMode}
-                className="checkin-btn"
-                onClick={handleCheckIn}
-              >
-                {adminMode ? "Admin Self Check-In" : "Scan QR to Check-In"}
-              </button>
-
-              <ul className="coupon-list">
-                {coupons.map((c, i) => (
-                  <li key={c.id} className={c.redeemed ? "coupon redeemed" : "coupon"}>
-                    🎟 Coupon #{i + 1} —{" "}
-                    {c.redeemed ? "🔴 Redeemed" : "🟢 Available"}
-                  </li>
-                ))}
-              </ul>
+            {leaderBanner && topUser && topUser.id !== user.uid && (
+            <div className="leader-banner">
+              <span role="img" aria-label="trophy">
+                🏆
+              </span>{" "}
+              {leaderBanner}
             </div>
+          )}
 
-            {/* Admin Dashboard */}
-            {adminMode && (
-              <div className="admin-panel">
-                <h2 className="panel-heading">Admin Dashboard</h2>
-                {loadingUsers && <p>Loading users…</p>}
-                {!loadingUsers &&
-                  allUsers
-                    .sort((a, b) => (b.points || 0) - (a.points || 0))
-                    .map((u) => {
-                      const active = (u.coupons || []).filter((c) => !c.redeemed)
-                        .length;
-                      return (
-                        <div key={u.id} className="admin-user-card">
-                          <div className="admin-user-header">
-                            <strong>{userDisplayName(u)}</strong> —{" "}
-                            {u.points || 0} check-ins
-                          </div>
-                          <div className="admin-user-sub">
-                            Coupons: {active} active / {(u.coupons || []).length} total
-                          </div>
+          {/* User Status Panel */}
+          <div className="card status-card">
+            <h2 className="section-title">Your Status</h2>
+            <p className="stat-line">
+              Check-ins: <strong>{points}</strong>
+            </p>
+            <p className="stat-line">
+              Coupons:{" "}
+              <strong>
+                {activeCoupons.length} active / {totalCoupons} total
+              </strong>
+            </p>
 
-                          <div className="admin-actions">
-                            <button
-                              className="small-btn"
-                              onClick={async () => {
-                                // weekly restriction not enforced for admin performing remote check-in
-                                await performCheckIn(u.id, u);
-                              }}
-                            >
-                              Admin Check-In
-                            </button>
-                          </div>
+            <button
+              className={`checkin-btn ${locked ? "locked" : ""}`}
+              onClick={handleOpenScanner}
+            >
+              {adminMode
+                ? "Admin Self Check-In"
+                : locked
+                ? "Scan QR (Locked This Week)"
+                : "Scan QR to Check-In"}
+            </button>
 
-                          <ul className="coupon-list condensed">
-                            {(u.coupons || []).map((c, i) => (
-                              <li
-                                key={c.id}
-                                className={c.redeemed ? "coupon redeemed" : "coupon"}
-                              >
-                                🎟 Re-Buy #{i + 1} —{" "}
-                                {c.redeemed ? "🔴 Redeemed" : "🟢 Available"}
-                                {!c.redeemed && (
-                                  <button
-                                    className="redeem-btn"
-                                    onClick={() => handleRedeem(u.id, c.id)}
-                                  >
-                                    Redeem
-                                  </button>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
+            {/* List own coupons */}
+            <div className="coupon-list">
+              {coupons.map((c, i) => (
+                <div
+                  key={c.id}
+                  className={`coupon-row ${c.redeemed ? "redeemed" : "active"}`}
+                >
+                  <span className="coupon-emoji">🎟️</span>
+                  <span>
+                    Coupon #{i + 1} —{" "}
+                    {c.redeemed ? "🔴 Redeemed" : "🟢 Available"}
+                  </span>
+                </div>
+              ))}
+              {coupons.length === 0 && (
+                <p className="faint">Earn a coupon every 5 check-ins.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Admin Dashboard */}
+          {adminMode && (
+            <div className="card admin-card">
+              <h2 className="section-title">Admin Dashboard</h2>
+              {/* Admin self check-in (explicit) */}
+              <div className="admin-self">
+                <button className="secondary-btn" onClick={handleAdminCheckIn}>
+                  Admin Manual Check-In
+                </button>
               </div>
-            )}
-          </>
-        )}
-      </div>
+              <div className="admin-users">
+                {allUsers
+                  .sort((a, b) => (b.points || 0) - (a.points || 0))
+                  .map((u) => {
+                    const uActive = (u.coupons || []).filter((c) => !c.redeemed);
+                    return (
+                      <div key={u.id} className="admin-user-row">
+                        <div className="admin-user-head">
+                          <strong>{u.name || u.email}</strong> —{" "}
+                          {u.points || 0} check-ins
+                        </div>
+                        <div className="admin-user-sub">
+                          Coupons: {uActive.length} active /{" "}
+                          {(u.coupons || []).length} total
+                        </div>
+                        <div className="admin-actions">
+                          <button
+                            className="mini-btn"
+                            onClick={() => performCheckIn(u.id)}
+                          >
+                            Admin Check-In
+                          </button>
+                        </div>
+                        <div className="admin-coupons">
+                          {(u.coupons || []).map((c, i) => (
+                            <div
+                              key={c.id}
+                              className={`mini-coupon ${
+                                c.redeemed ? "redeemed" : "active"
+                              }`}
+                            >
+                              🎟️ #{i + 1} —{" "}
+                              {c.redeemed ? "🔴 Redeemed" : "🟢 Available"}
+                              {!c.redeemed && (
+                                <button
+                                  className="redeem-btn"
+                                  onClick={() => handleRedeem(u.id, c.id)}
+                                >
+                                  Redeem
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                {allUsers.length === 0 && (
+                  <p className="faint">No users found.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* QR Scanner Modal */}
       {showScanner && (
-        <div className="scanner-overlay">
-          <div className="scanner-modal">
-            <h3>Scan Venue QR</h3>
-            <p className="scanner-hint">
+        <div className="qr-modal">
+          <div className="qr-dialog">
+            <h2 className="qr-title">Scan Venue QR</h2>
+            <p className="qr-sub">
               Point your camera at the venue’s QR code to register this week’s
               check-in.
             </p>
-            <div className="scanner-area">
-              <div className="scanner-placeholder">
-                {scanning ? "Scanning..." : "Stopped"}
-              </div>
+            <div className="qr-box-wrapper">
+              <div id={SCAN_REGION_ID} className="qr-box" />
+              <div className="scan-status">{scannerStatus}</div>
             </div>
-            <button
-              className="cancel-btn"
-              onClick={() => {
-                setShowScanner(false);
-                setScanning(false);
-              }}
-            >
-              Cancel
-            </button>
+            <div className="qr-actions">
+              <button className="cancel-btn" onClick={handleCloseScanner}>
+                Cancel
+              </button>
+            </div>
+            {locked && !adminMode && (
+              <p className="lock-note">
+                Already checked-in. Eligible again after: {nextEligibleText()}
+              </p>
+            )}
           </div>
         </div>
       )}
