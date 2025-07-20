@@ -1,15 +1,13 @@
 {
   "files": {
-    "main.css": "/bla-loyalty-app/static/css/main.8a23f02e.css",
-    "main.js": "/bla-loyalty-app/static/js/main.fab494ef.js",
-    "static/js/38.5b30b857.chunk.js": "/bla-loyalty-app/static/js/38.5b30b857.chunk.js",
+    "main.css": "/bla-loyalty-app/static/css/main.dfd5fb67.css",
+    "main.js": "/bla-loyalty-app/static/js/main.275b8525.js",
     "index.html": "/bla-loyalty-app/index.html",
-    "main.8a23f02e.css.map": "/bla-loyalty-app/static/css/main.8a23f02e.css.map",
-    "main.fab494ef.js.map": "/bla-loyalty-app/static/js/main.fab494ef.js.map",
-    "38.5b30b857.chunk.js.map": "/bla-loyalty-app/static/js/38.5b30b857.chunk.js.map"
+    "main.dfd5fb67.css.map": "/bla-loyalty-app/static/css/main.dfd5fb67.css.map",
+    "main.275b8525.js.map": "/bla-loyalty-app/static/js/main.275b8525.js.map"
   },
   "entrypoints": [
-    "static/css/main.8a23f02e.css",
-    "static/js/main.fab494ef.js"
+    "static/css/main.dfd5fb67.css",
+    "static/js/main.275b8525.js"
   ]
 }
